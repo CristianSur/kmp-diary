@@ -19,9 +19,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.ClipOp
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 data class DiaryEntry(val id: Int, val text: String)
 
@@ -29,13 +35,31 @@ data class DiaryEntry(val id: Int, val text: String)
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun App() {
+    NotePage()
+}
+
+@Composable
+fun NotePage() {
     var entry by remember { mutableStateOf("") }
     var entries by remember { mutableStateOf(listOf<DiaryEntry>()) }
     var showAll by remember { mutableStateOf(false) }
     var nextId by remember { mutableStateOf(0) }
 
+    var isVisible by remember { mutableStateOf(false) }
+
     val visibleEntries = remember(entries, showAll) {
         if (showAll) entries else entries.takeLast(1)
+    }
+
+    fun addEntry(text: String) {
+        isVisible = false
+        CoroutineScope(Dispatchers.Main).launch {
+            if (entries.isNotEmpty())
+                delay(600) // same as exit animation duration
+            entries = entries + DiaryEntry(nextId, text)
+            nextId++
+        }
+
     }
 
     Column(
@@ -43,6 +67,7 @@ fun App() {
             .fillMaxSize()
             .background(Color(0xFFEDE7D5))
             .padding(32.dp)
+            .padding(top = 40.dp)
             .imePadding()
     ) {
         // Header
@@ -71,26 +96,49 @@ fun App() {
                 contentPadding = PaddingValues(bottom = 12.dp)
             ) {
                 items(visibleEntries, key = { it.id }) { item ->
+                    var isRevealing by remember { mutableStateOf(false) }
 
-                    var visible by remember { mutableStateOf(false) }
+                    // Reveal animation from left to right (0% to 100%)
+                    val revealProgress by animateFloatAsState(
+                        targetValue = if (isRevealing) 1f else 0f,
+                        animationSpec = tween(
+                            durationMillis = 800,
+                            easing = EaseOutCubic
+                        ),
+                        label = "reveal"
+                    )
 
-                    LaunchedEffect(item.id) {
-                        visible = true
+                    LaunchedEffect(Unit) {
+                        delay(200) // Small delay before reveal starts
+                        isRevealing = true
                     }
 
 
+                    // Start reveal animation when the item enters composition
+                    LaunchedEffect(item.id) {
+                        isVisible = true
+                    }
+
                     AnimatedVisibility(
-                        visible = visible,
-                        enter = fadeIn(animationSpec = tween(500)) +
-                                slideInHorizontally(initialOffsetX = { -50 }) +
-                                scaleIn(),
-                        exit = fadeOut(animationSpec = tween(300)) +
-                                slideOutVertically(targetOffsetY = { -100 })
+                        visible = isVisible,
+                        enter = fadeIn(
+                            animationSpec = tween(600)
+                        ) + expandHorizontally(
+                            expandFrom = Alignment.Start,
+                            animationSpec = tween(600, easing = EaseOutCubic)
+                        ),
+                        exit = fadeOut(
+                            animationSpec = tween(600)
+                        ) + shrinkHorizontally(
+                            shrinkTowards = Alignment.End,
+                            animationSpec = tween(600, easing = EaseInCubic)
+                        )
                     ) {
                         DiaryCard(
-                            text = item.text, modifier = Modifier
-                                .clip(RectangleShape)
+                            text = item.text,
+                            modifier = Modifier
                                 .fillMaxWidth()
+                                .padding(horizontal = 2.dp)
                         )
                     }
                     Spacer(Modifier.height(10.dp))
@@ -109,53 +157,113 @@ fun App() {
         }
 
         Spacer(Modifier.height(10.dp))
+//Modifier.padding(16.dp)
 
+//        Column(modifier = Modifier.fillMaxSize(),
+//                verticalArrangement = Arrangement.Bottom,
+//            horizontalAlignment = Alignment.CenterHorizontally) {
         // Input
-        OutlinedTextField(
-            value = entry,
-            onValueChange = { entry = it },
-            label = { Text("Write your diary entry...") },
+        Box(modifier = Modifier.align(Alignment.CenterHorizontally)) {
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(horizontal = 2.dp)
+                .padding(bottom = 60.dp) // move above the TextField
+                .height(75.dp)
                 .shadow(2.dp, RoundedCornerShape(10.dp))
-                .background(Color(0xFFFFFCF3)),
-            textStyle = LocalTextStyle.current.copy(
-                fontSize = 16.sp,
-                fontFamily = FontFamily.Serif,
-                color = Color(0xFF1F2A44),
-                lineHeight = 24.sp
-            )
-        )
+                .background(Color(0xFFFFFCF3))
+                    .align(Alignment.BottomCenter)
+        ) {
+            // Red line
+            Box(
+                modifier = Modifier
+                    .width(80.dp)
+                    .fillMaxHeight()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .offset(x = 50.dp) // move the line much further to the right
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .width(2.dp)
+                            .background(Color(0xFFE96A6A))
+                    )
+                }
+                // Pin
+                Box(
+                    modifier = Modifier
+                        .offset(x = 12.dp, y = 8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .background(Color(0xFFD94F4F), shape = CircleShape)
+                    )
+                }
+            }
 
+            TextField(
+                value = entry,
+                onValueChange = { entry = it },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(start = 48.dp, end = 8.dp, bottom = 8.dp),
+                placeholder = { Text("Write your diary entry...") },
+                textStyle = LocalTextStyle.current.copy(
+                    fontSize = 16.sp,
+                    fontFamily = FontFamily.Serif,
+                    color = Color(0xFF1F2A44),
+                    lineHeight = 24.sp
+                ),
+                colors = TextFieldDefaults.colors(
+                    cursorColor = Color(0xFFD94F4F),
+                    //Main box
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    disabledContainerColor = Color.Transparent,
+                    //Bottom line
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent,
+                    //Placeholder
+                    focusedPlaceholderColor = Color(0xFF9E9E9E),
+                    unfocusedPlaceholderColor = Color(0xFF9E9E9E),
+                    disabledPlaceholderColor = Color(0xFF9E9E9E)
+                )
+
+            )
+        }
         Spacer(Modifier.height(16.dp))
 
         // Write button
         Button(
             onClick = {
                 if (entry.trim().isNotEmpty()) {
-                    entries = entries + DiaryEntry(nextId, entry)
-                    nextId++
+                    addEntry(entry)
                     entry = ""
                 }
             },
             modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .shadow(6.dp, RoundedCornerShape(12.dp))
+                .padding(5.dp)
+                .shadow(2.dp, RoundedCornerShape(18.dp))
+                    .align(Alignment.BottomCenter)
+
         ) {
             Text("Write", fontSize = 16.sp)
         }
     }
 }
 
+}
+
 @Composable
-fun DiaryCard(text: String, modifier: Modifier) {
+fun DiaryCard(text: String, modifier: Modifier) =
     Card(
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFCF3)),
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(4.dp, RoundedCornerShape(10.dp))
-            .padding(horizontal = 2.dp)
+        modifier = modifier
     ) {
         Box(modifier = Modifier.padding(16.dp)) {
             // Red line
@@ -181,4 +289,3 @@ fun DiaryCard(text: String, modifier: Modifier) {
             )
         }
     }
-}
