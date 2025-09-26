@@ -26,6 +26,7 @@ kotlin {
             implementation(compose.ui)
             implementation(compose.foundation)
             implementation(project(":shared"))
+            implementation(compose.material3)
         }
 
         androidMain.dependencies {
