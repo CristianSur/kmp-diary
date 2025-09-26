@@ -19,7 +19,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -150,76 +149,13 @@ fun App() {
 
 @Composable
 fun DiaryCard(text: String, modifier: Modifier) {
-    var isPeeling by remember { mutableStateOf(false) }
-    val density = LocalDensity.current
-    
-    // Animation values for peeling effect
-    val rotation by animateFloatAsState(
-        targetValue = if (isPeeling) -15f else 0f,
-        animationSpec = tween(
-            durationMillis = 800,
-            easing = EaseInOutCubic
-        ),
-        label = "rotation"
-    )
-    
-    val scaleX by animateFloatAsState(
-        targetValue = if (isPeeling) 0.8f else 1f,
-        animationSpec = tween(
-            durationMillis = 600,
-            easing = EaseInOutCubic
-        ),
-        label = "scaleX"
-    )
-    
-    val scaleY by animateFloatAsState(
-        targetValue = if (isPeeling) 0.9f else 1f,
-        animationSpec = tween(
-            durationMillis = 600,
-            easing = EaseInOutCubic
-        ),
-        label = "scaleY"
-    )
-    
-    val offsetX by animateFloatAsState(
-        targetValue = if (isPeeling) 20f else 0f,
-        animationSpec = tween(
-            durationMillis = 700,
-            easing = EaseInOutCubic
-        ),
-        label = "offsetX"
-    )
-    
-    val offsetY by animateFloatAsState(
-        targetValue = if (isPeeling) -10f else 0f,
-        animationSpec = tween(
-            durationMillis = 700,
-            easing = EaseInOutCubic
-        ),
-        label = "offsetY"
-    )
-    
-    // Start peeling animation when card is first displayed
-    LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(300) // Small delay before peeling starts
-        isPeeling = true
-    }
-    
     Card(
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFCF3)),
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
             .shadow(4.dp, RoundedCornerShape(10.dp))
             .padding(horizontal = 2.dp)
-            .graphicsLayer(
-                rotationZ = rotation,
-                scaleX = scaleX,
-                scaleY = scaleY,
-                translationX = with(density) { offsetX.dp.toPx() },
-                translationY = with(density) { offsetY.dp.toPx() },
-                transformOrigin = TransformOrigin(0f, 0f) // Peel from top-left corner
-            )
     ) {
         Box(modifier = Modifier.padding(16.dp)) {
             // Red line
