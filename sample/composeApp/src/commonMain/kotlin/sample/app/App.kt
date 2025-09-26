@@ -12,8 +12,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -37,7 +43,8 @@ fun App() {
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFEDE7D5))
-            .padding(16.dp)
+            .padding(32.dp)
+            .imePadding()
     ) {
         // Header
         Row(
@@ -65,15 +72,27 @@ fun App() {
                 contentPadding = PaddingValues(bottom = 12.dp)
             ) {
                 items(visibleEntries, key = { it.id }) { item ->
+
+                    var visible by remember { mutableStateOf(false) }
+
+                    LaunchedEffect(item.id) {
+                        visible = true
+                    }
+
+
                     AnimatedVisibility(
-                        visible = true,
+                        visible = visible,
                         enter = fadeIn(animationSpec = tween(500)) +
                                 slideInHorizontally(initialOffsetX = { -50 }) +
                                 scaleIn(),
                         exit = fadeOut(animationSpec = tween(300)) +
                                 slideOutVertically(targetOffsetY = { -100 })
                     ) {
-                        DiaryCard(text = item.text)
+                        DiaryCard(
+                            text = item.text, modifier = Modifier
+                                .clip(RectangleShape)
+                                .fillMaxWidth()
+                        )
                     }
                     Spacer(Modifier.height(10.dp))
                 }
@@ -130,14 +149,77 @@ fun App() {
 }
 
 @Composable
-fun DiaryCard(text: String) {
+fun DiaryCard(text: String, modifier: Modifier) {
+    var isPeeling by remember { mutableStateOf(false) }
+    val density = LocalDensity.current
+    
+    // Animation values for peeling effect
+    val rotation by animateFloatAsState(
+        targetValue = if (isPeeling) -15f else 0f,
+        animationSpec = tween(
+            durationMillis = 800,
+            easing = EaseInOutCubic
+        ),
+        label = "rotation"
+    )
+    
+    val scaleX by animateFloatAsState(
+        targetValue = if (isPeeling) 0.8f else 1f,
+        animationSpec = tween(
+            durationMillis = 600,
+            easing = EaseInOutCubic
+        ),
+        label = "scaleX"
+    )
+    
+    val scaleY by animateFloatAsState(
+        targetValue = if (isPeeling) 0.9f else 1f,
+        animationSpec = tween(
+            durationMillis = 600,
+            easing = EaseInOutCubic
+        ),
+        label = "scaleY"
+    )
+    
+    val offsetX by animateFloatAsState(
+        targetValue = if (isPeeling) 20f else 0f,
+        animationSpec = tween(
+            durationMillis = 700,
+            easing = EaseInOutCubic
+        ),
+        label = "offsetX"
+    )
+    
+    val offsetY by animateFloatAsState(
+        targetValue = if (isPeeling) -10f else 0f,
+        animationSpec = tween(
+            durationMillis = 700,
+            easing = EaseInOutCubic
+        ),
+        label = "offsetY"
+    )
+    
+    // Start peeling animation when card is first displayed
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(300) // Small delay before peeling starts
+        isPeeling = true
+    }
+    
     Card(
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFCF3)),
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .shadow(4.dp, RoundedCornerShape(10.dp))
             .padding(horizontal = 2.dp)
+            .graphicsLayer(
+                rotationZ = rotation,
+                scaleX = scaleX,
+                scaleY = scaleY,
+                translationX = with(density) { offsetX.dp.toPx() },
+                translationY = with(density) { offsetY.dp.toPx() },
+                transformOrigin = TransformOrigin(0f, 0f) // Peel from top-left corner
+            )
     ) {
         Box(modifier = Modifier.padding(16.dp)) {
             // Red line
